@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Tontine — Épargne en USDT</title>
+<style>
+  :root {
+    color-scheme: dark;
+    --bg: #0b0d12; --surface: #151821; --surface-2: #1c202b; --border: #262b38;
+    --text: #e8eaf0; --text-dim: #8b93a7;
+    --accent: #6366f1; --accent-hover: #4f46e5;
+    --green: #10b981; --amber: #f59e0b; --red: #ef4444; --radius: 14px;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    max-width: 480px; margin: 0 auto; padding: 20px 16px 60px;
+    background: var(--bg); color: var(--text); line-height: 1.5; min-height: 100vh;
+  }
+  header.app-header { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+  header.app-header .logo {
+    width: 44px; height: 44px; border-radius: 12px;
+    background: linear-gradient(135deg, var(--accent), #8b5cf6);
+    display: flex; align-items: center; justify-content: center; font-size: 22px; flex-shrink: 0;
+  }
+  header.app-header h1 { font-size: 1.15rem; margin: 0; }
+  header.app-header p { margin: 2px 0 0; font-size: 0.8rem; color: var(--text-dim); }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; margin-bottom: 16px;
+  }
+  .center { text-align: center; }
+
+  button {
+    padding: 11px 16px; border-radius: 10px; border: none; background: var(--accent);
+    color: white; cursor: pointer; font-size: 0.9rem; font-weight: 600; width: 100%;
+  }
+  button:hover { background: var(--accent-hover); }
+  button.secondary { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+  button.danger { background: transparent; color: var(--red); border: 1px solid rgba(239,68,68,0.4); }
+
+  input {
+    width: 100%; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--border);
+    background: var(--surface-2); color: var(--text); font-size: 0.9rem; margin-bottom: 10px;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+
+  nav { display: flex; gap: 4px; margin-bottom: 18px; background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius); padding: 5px; }
+  nav button { background: transparent; color: var(--text-dim); font-weight: 500; font-size: 0.78rem; padding: 9px 6px; }
+  nav button.active { background: var(--accent); color: white; }
+
+  .plan-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; background: var(--surface-2); }
+  .plan-card h3 { margin: 0 0 8px; font-size: 1rem; }
+  .plan-card .row { display: flex; justify-content: space-between; font-size: 0.85rem; color: var(--text-dim); margin-bottom: 4px; }
+  .plan-card .row b { color: var(--text); }
+
+  .badge { padding: 3px 10px; border-radius: 20px; font-size: 0.72rem; font-weight: 600; background: var(--surface-2); color: var(--text-dim); display: inline-block; }
+  .badge.matured { background: rgba(16,185,129,0.15); color: var(--green); }
+  .badge.pending { background: rgba(245,158,11,0.15); color: var(--amber); }
+
+  .deposit-card { border: 1px solid var(--border); border-radius: var(--radius); padding: 14px; margin-bottom: 10px; background: var(--surface-2); }
+  .deposit-card .top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .deposit-card .meta { font-size: 0.8rem; color: var(--text-dim); }
+
+  #status { font-size: 0.85rem; color: var(--text-dim); margin-bottom: 12px; min-height: 1.2em; text-align: center; }
+  #status.error { color: var(--red); }
+  .address-box { background: var(--surface-2); border: 1px dashed var(--border); border-radius: 10px; padding: 12px; font-family: monospace; font-size: 0.85rem; word-break: break-all; margin: 10px 0; }
+  .empty-state { color: var(--text-dim); font-size: 0.85rem; padding: 20px; text-align: center; }
+</style>
+</head>
+<body>
+
+<header class="app-header">
+  <div class="logo">🏦</div>
+  <div>
+    <h1>Tontine</h1>
+    <p>Épargne en USDT — simple et automatique</p>
+  </div>
+</header>
+
+<div id="status"></div>
+
+<div id="login-view" class="card center">
+  <p style="color:var(--text-dim); margin-bottom:14px">Connecte-toi avec ton compte Telegram pour continuer.</p>
+  <div id="telegram-login-container"></div>
+</div>
+
+<div id="app-view" style="display:none">
+  <nav>
+    <button onclick="showTab('plans')" id="tab-plans" class="active">Plans</button>
+    <button onclick="showTab('deposits')" id="tab-deposits">Mes dépôts</button>
+    <button onclick="showTab('settings')" id="tab-settings">Paramètres</button>
+  </nav>
+  <div id="content"></div>
+</div>
+
+<script>
+const CONFIG_KEY = 'tontine_site_config';
+let config = JSON.parse(localStorage.getItem(CONFIG_KEY) || '{}');
+// config: { workerUrl, token, botUsername }
+
+// --- Configuration initiale (à faire une seule fois par appareil) ---
+if (!config.workerUrl || !config.botUsername) {
+  const workerUrl = prompt("URL de ton Worker (ex: https://doublex.ficheprobot.workers.dev) :");
+  const botUsername = prompt("Nom d'utilisateur du bot Telegram (sans @) :");
+  config = { ...config, workerUrl: (workerUrl || '').replace(/\/$/, ''), botUsername: botUsername || '' };
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+}
+
+function setStatus(msg, isError) {
+  const el = document.getElementById('status');
+  el.textContent = msg;
+  el.className = isError ? 'error' : '';
+}
+
+async function api(path, options = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(options.headers || {}) };
+  if (config.token) headers['Authorization'] = `Bearer ${config.token}`;
+  const res = await fetch(config.workerUrl + path, { ...options, headers });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || `Erreur ${res.status}`);
+  return data;
+}
+
+// --- Widget "Login with Telegram" ---
+function loadTelegramWidget() {
+  if (!config.botUsername) return;
+  const script = document.createElement('script');
+  script.src = 'https://telegram.org/js/telegram-widget.js?22';
+  script.setAttribute('data-telegram-login', config.botUsername);
+  script.setAttribute('data-size', 'large');
+  script.setAttribute('data-onauth', 'onTelegramAuth(user)');
+  script.setAttribute('data-request-access', 'write');
+  script.async = true;
+  document.getElementById('telegram-login-container').appendChild(script);
+}
+
+async function onTelegramAuth(user) {
+  try {
+    setStatus('Connexion...');
+    const result = await api('/api/auth/telegram', { method: 'POST', body: JSON.stringify(user) });
+    config.token = result.token;
+    localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+    setStatus('');
+    showApp();
+  } catch (e) {
+    setStatus(e.message, true);
+  }
+}
+window.onTelegramAuth = onTelegramAuth;
+
+function showApp() {
+  document.getElementById('login-view').style.display = 'none';
+  document.getElementById('app-view').style.display = 'block';
+  showTab('plans');
+}
+
+function logout() {
+  config.token = null;
+  localStorage.setItem(CONFIG_KEY, JSON.stringify(config));
+  location.reload();
+}
+
+let currentTab = 'plans';
+function showTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + tab).classList.add('active');
+  ({ plans: loadPlans, deposits: loadDeposits, settings: loadSettings })[tab]();
+}
+
+function formatAmount(p) {
+  return p.amount_type === 'fixed' ? `${p.amount_fixed} USDT` : `${p.amount_min} – ${p.amount_max} USDT`;
+}
+
+async function loadPlans() {
+  try {
+    setStatus('Chargement...');
+    const plans = await api('/api/plans');
+    setStatus('');
+    if (!plans.length) {
+      document.getElementById('content').innerHTML = '<p class="empty-state">Aucun plan disponible pour le moment.</p>';
+      return;
+    }
+    document.getElementById('content').innerHTML = plans.map(p => `
+      <div class="plan-card">
+        <h3>📌 ${p.name}</h3>
+        <div class="row"><span>Montant</span><b>${formatAmount(p)}</b></div>
+        <div class="row"><span>Durée</span><b>${p.duration_days} jours</b></div>
+        <div class="row"><span>Gain à l'échéance</span><b>+${p.gain_percent}%</b></div>
+        <div style="margin-top:10px"><button onclick="choosePlan(${p.id})">✅ Choisir ce plan</button></div>
+      </div>
+    `).join('');
+  } catch (e) { setStatus(e.message, true); }
+}
+
+async function choosePlan(planId) {
+  try {
+    setStatus('Création de ton adresse de dépôt...');
+    const result = await api('/api/deposits', { method: 'POST', body: JSON.stringify({ planId }) });
+    setStatus('');
+    const amountText = result.plan.amount_type === 'fixed'
+      ? `exactement ${result.plan.amount_fixed} USDT`
+      : `entre ${result.plan.amount_min} et ${result.plan.amount_max} USDT`;
+    document.getElementById('content').innerHTML = `
+      <div class="card">
+        <h3>✅ Plan "${result.plan.name}" sélectionné</h3>
+        <p style="color:var(--text-dim); font-size:0.85rem">Envoie ${amountText} (réseau <b>TRC20</b> uniquement) à cette adresse :</p>
+        <div class="address-box">${result.depositAddress}</div>
+        <p style="color:var(--text-dim); font-size:0.8rem">⏳ Le compte à rebours démarre dès que le dépôt est confirmé sur la blockchain (quelques minutes).</p>
+        <button class="secondary" onclick="showTab('deposits')">Voir mes dépôts</button>
+      </div>`;
+  } catch (e) { setStatus(e.message, true); }
+}
+
+const STATUS_LABELS = {
+  awaiting_deposit: '⏳ En attente de dépôt', confirmed: '✅ Confirmé (en cours)',
+  matured: '🎉 Prêt à ramasser', withdrawal_pending: '🔄 Retrait en cours',
+  withdrawal_approved: '🔄 Retrait approuvé', withdrawn: '💸 Retiré', rejected: '❌ Refusé',
+  mismatched_amount: '⚠️ Montant à régulariser', refunded: '↩️ Remboursé',
+};
+
+async function loadDeposits() {
+  try {
+    setStatus('Chargement...');
+    const deposits = await api('/api/deposits');
+    setStatus('');
+    if (!deposits.length) {
+      document.getElementById('content').innerHTML = '<p class="empty-state">Tu n\'as encore aucun dépôt.</p>';
+      return;
+    }
+    document.getElementById('content').innerHTML = deposits.map(d => `
+      <div class="deposit-card">
+        <div class="top"><b>${d.plan_name}</b> <span class="badge ${d.status === 'matured' ? 'matured' : ''}">${STATUS_LABELS[d.status] || d.status}</span></div>
+        ${d.maturity_date ? `<div class="meta">Échéance : ${d.maturity_date}</div>` : ''}
+        ${d.status === 'matured' ? `<button style="margin-top:8px" onclick="requestWithdrawal(${d.id})">💸 Retirer</button>` : ''}
+      </div>
+    `).join('');
+  } catch (e) { setStatus(e.message, true); }
+}
+
+async function requestWithdrawal(depositId) {
+  try {
+    setStatus('Envoi de la demande...');
+    const result = await api('/api/withdrawals', { method: 'POST', body: JSON.stringify({ depositId }) });
+    setStatus('');
+    alert(result.requiresApproval
+      ? `Demande de ${result.totalAmount.toFixed(2)} USDT enregistrée. Elle nécessite une validation manuelle.`
+      : `Demande de ${result.totalAmount.toFixed(2)} USDT enregistrée. Envoi automatique d'ici ~${result.holdMinutes} min.`);
+    loadDeposits();
+  } catch (e) { setStatus(e.message, true); }
+}
+
+async function loadSettings() {
+  try {
+    setStatus('Chargement...');
+    const me = await api('/api/me');
+    setStatus('');
+    document.getElementById('content').innerHTML = `
+      <div class="card">
+        <h3>⚙️ Adresse de retrait</h3>
+        <p style="color:var(--text-dim); font-size:0.85rem">Adresse TRON (TRC20) où recevoir tes retraits.</p>
+        <input id="s-address" placeholder="T..." value="${me.withdrawalAddress || ''}" />
+        <button onclick="saveAddress()">Enregistrer</button>
+      </div>
+      <button class="danger" onclick="logout()">Se déconnecter</button>
+    `;
+  } catch (e) { setStatus(e.message, true); }
+}
+
+async function saveAddress() {
+  try {
+    const withdrawalAddress = document.getElementById('s-address').value.trim();
+    setStatus('Enregistrement...');
+    await api('/api/settings', { method: 'PUT', body: JSON.stringify({ withdrawalAddress }) });
+    setStatus('✅ Adresse enregistrée.');
+  } catch (e) { setStatus(e.message, true); }
+}
+
+// --- Démarrage ---
+if (config.token) {
+  showApp();
+} else {
+  loadTelegramWidget();
+}
+</script>
+</body>
+</html>
