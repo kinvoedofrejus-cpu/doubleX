@@ -1,0 +1,58 @@
+name = "tontine-bot"
+main = "src/index.ts"
+compatibility_date = "2026-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "tontine-db"
+database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+
+[triggers]
+# Toutes les 5 minutes : détecte les dépôts on-chain et traite les retraits automatiques
+crons = ["*/5 * * * *"]
+
+# Ne mets PAS de secrets ici (token bot, clé admin, clé de chiffrement,
+# clé privée du portefeuille central). Utilise plutôt :
+#   wrangler secret put TELEGRAM_BOT_TOKEN
+#   wrangler secret put TELEGRAM_WEBHOOK_SECRET
+#   wrangler secret put ADMIN_API_KEY
+#   wrangler secret put WALLET_ENCRYPTION_KEY
+#   wrangler secret put TRONGRID_API_KEY
+#   wrangler secret put CENTRAL_WALLET_ADDRESS
+#   wrangler secret put CENTRAL_WALLET_PRIVATE_KEY
+[vars]
+USDT_TRC20_CONTRACT = "TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t"
+# Seuil au-delà duquel un retrait attend ta validation manuelle. Laisse vide ("")
+# pour désactiver tout seuil : tous les retraits deviennent automatiques.
+WITHDRAWAL_AUTO_THRESHOLD_USDT = ""
+# Nombre de minutes entre l'approbation d'un retrait et son envoi réel — te
+# laisse le temps de le bloquer depuis l'espace admin même sans seuil. Mets 0
+# pour un envoi immédiat sans aucune fenêtre d'intervention.
+# Délai (en minutes) avant qu'un retrait approuvé automatiquement soit réellement
+# envoyé. 0 = instantané (au prochain passage du cron, ~5 min). Laisse à 0 si tu
+# veux que seul le blocage par utilisateur serve de garde-fou.
+WITHDRAWAL_HOLD_MINUTES = "0"
+TRONGRID_API_URL = "https://api.trongrid.io"
+# Quantité de TRX envoyée à chaque adresse de dépôt pour payer les frais du sweep vers le portefeuille central
+SWEEP_GAS_TRX = "15"
+# Lien d'invitation du groupe de discussion (affiché aux utilisateurs), ex: https://t.me/+xxxxx
+TELEGRAM_GROUP_LINK = ""
+# ID numérique (négatif) de la chaîne Telegram où annoncer les retraits — le bot doit être admin de cette chaîne
+TELEGRAM_ANNOUNCEMENT_CHANNEL_ID = ""
+# ID de ton chat Telegram personnel — reçoit les alertes nécessitant une action
+# (retrait à valider, dépôt à montant erroné) ET donne accès à la commande /admin
+# (espace admin directement dans Telegram). Plusieurs admins possibles : sépare
+# leurs ID par des virgules, ex: "111111,222222". Récupère le tien via @userinfobot.
+ADMIN_TELEGRAM_CHAT_ID = ""
+# URL d'une image (hébergée en ligne, ex: sur Imgur ou GitHub) affichée en bannière
+# d'accueil au /start. Laisse vide pour un simple message texte sans image.
+WELCOME_IMAGE_URL = ""
+# Domaine exact où tu héberges le site utilisateur (site/index.html), ex:
+# "https://tonpseudo.github.io". Restreint quels sites peuvent appeler l'API
+# utilisateur avec les identifiants du visiteur. Laisse vide ("*") en test.
+SITE_ORIGIN = ""
+
+# SESSION_SECRET est un SECRET (pas une variable normale) — ajoute-le via
+# wrangler secret put SESSION_SECRET. Signe les sessions du site web ; une
+# chaîne aléatoire longue, différente de tous les autres secrets.
