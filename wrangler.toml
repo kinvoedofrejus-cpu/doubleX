@@ -6,7 +6,7 @@ compatibility_flags = ["nodejs_compat"]
 [[d1_databases]]
 binding = "DB"
 database_name = "tontine-db"
-database_id = "REPLACE_WITH_YOUR_D1_DATABASE_ID"
+database_id = "69b42ba4-d36c-42b3-bf24-6f02dd7f143b"
 
 [triggers]
 # Toutes les 5 minutes : détecte les dépôts on-chain et traite les retraits automatiques
