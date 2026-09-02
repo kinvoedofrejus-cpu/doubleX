@@ -44,7 +44,7 @@ TELEGRAM_ANNOUNCEMENT_CHANNEL_ID = ""
 # (retrait à valider, dépôt à montant erroné) ET donne accès à la commande /admin
 # (espace admin directement dans Telegram). Plusieurs admins possibles : sépare
 # leurs ID par des virgules, ex: "111111,222222". Récupère le tien via @userinfobot.
-ADMIN_TELEGRAM_CHAT_ID = ""
+ADMIN_TELEGRAM_CHAT_ID = "8753381337"
 # URL d'une image (hébergée en ligne, ex: sur Imgur ou GitHub) affichée en bannière
 # d'accueil au /start. Laisse vide pour un simple message texte sans image.
 WELCOME_IMAGE_URL = ""
